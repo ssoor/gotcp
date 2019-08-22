@@ -31,7 +31,7 @@ func NewServer(config *Config, callback ConnCallback, protocol Protocol) *Server
 }
 
 // Start starts service
-func (s *Server) Start(listener *net.TCPListener, acceptTimeout time.Duration) {
+func (s *Server) Start(listener *net.TCPListener, acceptTimeout time.Duration) error {
 	s.waitGroup.Add(1)
 	defer func() {
 		listener.Close()
@@ -41,7 +41,7 @@ func (s *Server) Start(listener *net.TCPListener, acceptTimeout time.Duration) {
 	for {
 		select {
 		case <-s.exitChan:
-			return
+			return nil
 
 		default:
 		}
@@ -50,7 +50,11 @@ func (s *Server) Start(listener *net.TCPListener, acceptTimeout time.Duration) {
 
 		conn, err := listener.AcceptTCP()
 		if err != nil {
-			continue
+			if opError, ok := err.(*net.OpError); ok && opError.Timeout() {
+				continue
+			}
+
+			return err
 		}
 
 		s.waitGroup.Add(1)
